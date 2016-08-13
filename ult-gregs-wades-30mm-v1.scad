@@ -8,6 +8,7 @@
 // - Misan (2013)
 // - Marty Rice (2013)
 // - AndrewBCN (August 2015)
+// - G. Futia [GLF] (January 2016)
 
 // This version of Greg's Wade's Geared Extruder was designed to fit
 // a standard Prusa i3 X-carriage with 30mm spaced M3 holes. Filament diameter is
@@ -47,7 +48,9 @@ default_extruder_mount=groovemount;
 // Filament diameter
 // - use 1.80 or 1.85 for 1.75mm diameter filament
 // - use 3.00 for 3mm diameter filament
-filament_diameter=1.85;
+// - use 4 for PTFE guide tube insert (GLF)
+filament_diameter=4;
+//filament_diameter=4.00;
 //filament_diameter=3.00;
 
 // Base Extra Depth allows extra space for longer NEMA 17 steppers
@@ -177,14 +180,19 @@ translate(large_wheel_translation) {
 //===================================================
 // Parameters defining the wade body:
 
-elevation = 8; // AndrewBCN: was 15mm, decreased to 8mm
+elevation = 10; // AndrewBCN: was 15mm, decreased to 8mm GLF: set to 10
 wade_block_height=55+elevation;
 wade_block_width=24;
 wade_block_depth=28;
 
+// GLF rom jonaskuehling_greg-wade-v3
+// Nut wrench sizes ISO 4032
+m3_wrench = 5.5;
+m4_wrench = 7;
+
 block_bevel_r=6;
 
-base_thickness=10;
+base_thickness=12;  // GLF increased for third hole
 base_length=70+2-6;
 base_leadout=25+2+1-6;
 //base_extra_depth=0; // commented out here since we defined it above
@@ -210,8 +218,14 @@ hole_for_608=22.15; // AndrewBCN: was 22.3mm, decreased to 22.15mm
 block_top_right=[wade_block_width,wade_block_height];
 
 layer_thickness=0.2; //0.35;
-//filament_diameter=3; // commented out here since we defined it above
-filament_feed_hole_d=(filament_diameter*1.1)/cos(180/8);
+
+feedhole_diamter = filament_diameter; 
+feedhole_diamter_offset = .15;
+feedhole_facets = 32;
+// the .25 is because holes are often undersized in printing
+// the cos(180/feedhole_facets) makes it so that the minimum diameter of the hole is feedhole_diameter+.25. 
+filament_feed_hole_d=(feedhole_diamter+ feedhole_diamter_offset)/cos(180/feedhole_facets);
+
 hobbing_depth=2;
 echo ("filament_feed_hole_d", filament_feed_hole_d);
 
@@ -223,10 +237,15 @@ echo ("filament_feed_hole_offset", filament_feed_hole_offset);
 idler_nut_trap_depth=7.5;
 idler_nut_thickness=4;
 
+
+// GLF changing these parameneters don't change anything
+// in the rendered image
 gear_separation_tolerance=0.25;
 gear_separation=7.4444+32.0111+gear_separation_tolerance;
 
-echo ("distance between axles (excluding tolerance)", gear_separation-gear_separation_tolerance);
+// GLF this seems to be the right answer
+r_axels = sqrt(pow((motor_mount_translation[0] - large_wheel_translation[0]),2) + pow((motor_mount_translation[1] - large_wheel_translation[1]),2));
+echo ("distance between axles (excluding tolerance)", r_axels);
 
 function motor_hole(hole)=[
 	motor_mount_translation[0],
@@ -416,26 +435,27 @@ echo("bhmh", mounting_holes)
 		cylinder(r=block_bevel_r,h=wade_block_depth+2,$fn=40);
 	}
 
+    counter_bore_depth = 12.5; // GLf
 	//carriage mounting holes
     // GLF changed from 4 to 6
-	translate([-48.5+64+6,1,3]) {
+	translate([-48.5+64+5.5,1,3]) {
 		translate([-25,0,0]) { //-46
 			translate([0,0,layer_thickness+23]) 
 			  cylinder(r=m3_diameter/2, h=wade_block_depth+0.2+base_extra_depth, center=true,$fn=20);
-			cylinder(r=m3_nut_diameter/2+0.4, h=20, center=true,$fn=20);
+			cylinder(r=m3_nut_diameter/2+0.4, h=counter_bore_depth, center=true,$fn=20);
 		}
 		
 		translate([5,0,0]) { //-22
 			translate([0,0,layer_thickness+23]) 
 			  cylinder(r=m3_diameter/2, h=wade_block_depth+0.2+base_extra_depth, center=true,$fn=20);
-			cylinder(r=m3_nut_diameter/2+0.4, h=20, center=true,$fn=20);
+			cylinder(r=m3_nut_diameter/2+0.4, h=counter_bore_depth, center=true,$fn=20);
 		}
         
         // GLF third mounting hole
-        translate([-10,23.11,0]) { //-22
+        translate([-10,10.26,0]) { //-22
 			translate([0,0,layer_thickness+23]) 
 			  cylinder(r=m3_diameter/2, h=wade_block_depth+0.2+base_extra_depth, center=true,$fn=20);
-			cylinder(r=m3_nut_diameter/2+0.4, h=20, center=true,$fn=20);
+			cylinder(r=m3_nut_diameter/2+0.4, h=counter_bore_depth, center=true,$fn=20);
 		}
 
         
@@ -487,7 +507,9 @@ echo("bhmh", mounting_holes)
 			rotate([90,0,0])
 			rotate(360/16)
 			// AndrewBCN : I increased the number of facets from 8 to 16 and increased the diameter by 10%
-			cylinder(r=filament_feed_hole_d*1.1/2,h=wade_block_depth*3+elevation+50,center=true,$fn=16);	
+            // GLF the 10 % was already done in
+            // filament_feed_hole initialization
+			cylinder(r=filament_feed_hole_d/2,h=wade_block_depth*3+elevation+50,center=true,$fn=feedhole_facets);	
 
 			//Widened opening for hobbed bolt access.
 			translate([2,wade_block_height/2+2,wade_block_depth/2+0.2])
@@ -513,12 +535,14 @@ echo("bhmh", mounting_holes)
 				cylinder(r=m4_diameter/2,h=base_thickness+2,$fn=8);	
 	
 				translate([-filament_feed_hole_offset+25*((mount<1)?1:-1),
-					-large_wheel_translation[1],
+					-large_wheel_translation[1]+base_thickness/2+1,
 					wade_block_depth/2])
-				rotate([-90,0,0])
+				rotate([90,0,0])
 			//fixme: (correct height
+                // GLF fixed by adding basethickess to the translation
 				//cylinder(r=m4_nut_diameter/2,h=base_thickness,$fn=6);	
-				cylinder(r=m4_nut_diameter/2,h=29.3,$fn=6);
+				
+                cylinder(r=m4_nut_diameter/2,h=3.4 + 1,$fn=6);               
 			}
 
 	}
@@ -530,18 +554,41 @@ echo("bhmh", mounting_holes)
 		translate([0,
 			idler_mounting_hole_up+large_wheel_translation[1],
 			wade_block_depth/2+idler_mounting_hole_across*idle])
-		rotate([0,90,0])
-		{
-			rotate([0,0,180/8])
-			translate([0,0,-1])
-			cylinder(r=m4_diameter/2,h=wade_block_depth+6,$fn=8);	
-			rotate([0,0,180/6])
-			translate([0,0,wade_block_width-idler_nut_trap_depth])
-			cylinder(r=m4_nut_diameter/2,h=idler_nut_thickness,$fn=6);	
+		rotate([0,90,0]){
+			rotate([0,0,30]){
+				// screw holes
+				translate([0,0,-1])
+				cylinder(r=idler_mounting_hole_diameter/2,h=wade_block_depth+6,$fn=6);
 
+				// nut traps
+				translate([0,0,wade_block_width-idler_nut_trap_depth+idler_nut_thickness/2])
+//				cylinder(r=m4_nut_diameter/2,h=idler_nut_thickness,$fn=6);	
+				nut_trap(m4_wrench,idler_nut_thickness);
+			}
+			// nut slots
 			translate([0,10/2,wade_block_width-idler_nut_trap_depth+idler_nut_thickness/2])
-			cube([m4_nut_diameter*cos(30),10,idler_nut_thickness],center=true);
+			cube([m4_wrench+0.4,10,idler_nut_thickness],center=true);
+
+			// screw holes 30°
+			for(tilt=[1:6]){
+				translate([0,0,(wade_block_width-idler_nut_trap_depth+idler_nut_thickness/2)])
+				rotate([tilt*5,0,0])
+				rotate([0,0,30])
+				translate([0,0,-28])
+				cylinder(r=idler_mounting_hole_diameter/2,h=wade_block_depth+10,$fn=6);
+			}
+
+			// nut traps 30°
+			translate([0,0,wade_block_width-idler_nut_trap_depth+idler_nut_thickness/2])
+			for(tilt_nut=[1:6])
+				rotate([tilt_nut*5,0,0])
+				rotate([0,0,30])
+//				cylinder(r=m4_nut_diameter/2,h=idler_nut_thickness,$fn=6);
+				nut_trap(m4_wrench,idler_nut_thickness);			
+			
+
 		}
+
 	}
 }
 
@@ -606,30 +653,36 @@ module motor_mount_holes()
 module wadeidler() 
 {
     guide_height=12.3;
+    guide_depth = 5; // depth of gluder
     guide_length=10;
+    
 
     union()
     {
          // thumb saver added by Marty Rice, shape modified by AndrewBCN
-	 translate(idler_axis+[-idler_height/2+2,+idler_long_side/2-idler_long_bottom,0])
-         translate([-idler_height/4,20,0])
-         { 
-	    difference() {
-	      hull() {
-		translate([0,-2,idler_short_side/3]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
-		translate([0,-2,-idler_short_side/3]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
-		translate([0,3.8,idler_short_side/3-0.5]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
-		translate([0,3.8,-idler_short_side/3+0.5]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
-	      }
-	      //smooth slope to "guide" the thumb
-	      translate([idler_height/2+2,3.8,0]) rotate([0,0,0]) cylinder(h=idler_short_side,r=7.5, $fn=64, center=true);
-	    }
-	    // a small ridge to avoid the thumb slipping
-	    hull() {
-	      translate([idler_height/4-2.3,3.8,idler_short_side/3-1]) sphere(r=1, $fn=16);
-	      translate([idler_height/4-2.3,3.8,-idler_short_side/3+1]) sphere(r=1, $fn=16);	    
-	    }
-         } // end of thumb saver code
+    // GLF - commented out the thumb saver to change to reloaded version       
+    // could also make it smaller but 
+    // numbers seem mostly hard coded
+    
+//	 translate(idler_axis+[-idler_height/2+2,+idler_long_side/2-idler_long_bottom,0])
+//         translate([-idler_height/4,20,0])
+//         { 
+//	    difference() {
+//	      hull() {
+//		translate([0,-2,idler_short_side/3]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
+//		translate([0,-2,-idler_short_side/3]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
+//		translate([0,3.8,idler_short_side/3-0.5]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
+//		translate([0,3.8,-idler_short_side/3+0.5]) rotate([0,90,0]) cylinder(h=idler_height/2,r=1, $fn=16, center=true);
+//	      }
+//	      //smooth slope to "guide" the thumb
+//	      translate([idler_height/2+2,3.8,0]) rotate([0,0,0]) cylinder(h=idler_short_side,r=7.5, $fn=64, center=true);
+//	    }
+//	    // a small ridge to avoid the thumb slipping
+//	    hull() {
+//	      translate([idler_height/4-2.3,3.8,idler_short_side/3-1]) sphere(r=1, $fn=16);
+//	      translate([idler_height/4-2.3,3.8,-idler_short_side/3+1]) sphere(r=1, $fn=16);	    
+//	    }
+//         } // end of thumb saver code
 
 
 	difference()
@@ -643,7 +696,8 @@ module wadeidler()
 
 			//Filament Guide.
 			translate([guide_height/2+idler_height/2-1,idler_long_side/2-guide_length/2,0])
-			cube([guide_height+1,guide_length,8],center=true);
+                
+			cube([guide_height+guide_depth,guide_length,8],center=true);
 			}
 
 			// The fulcrum Hinge
@@ -707,19 +761,19 @@ module wadeidler()
 		rotate(360/16)
 		cylinder(h=3,r=m3_nut_diameter/2+0.2,$fn=6); // AndrewBCN: 0.2mm tolerance added here
 
+// took code from jonaskueling_gregs-wade-v3.
 		for(idler_screw_hole=[-1,1])
 		translate(idler_axis+[2-idler_height,0,0])
 		{
-			//Screw Holes.
-			translate([-1,idler_mounting_hole_up,
+			//Screw Holes. Schraubenloecher
+			translate([-1,idler_mounting_hole_up-1,
 				idler_screw_hole*idler_mounting_hole_across])
-			rotate([0,90,0])
-			{
+			rotate([0,90,0]){
 				cylinder(r=idler_mounting_hole_diameter/2,h=idler_height+2,$fn=16);
-				translate([0,idler_mounting_hole_elongation,0])
+				translate([0,idler_mounting_hole_elongation+0.8,0])
 				cylinder(r=idler_mounting_hole_diameter/2,h=idler_height+2,$fn=16);
 				translate([-idler_mounting_hole_diameter/2,0,0])
-				cube([idler_mounting_hole_diameter,idler_mounting_hole_elongation,
+				cube([idler_mounting_hole_diameter,idler_mounting_hole_elongation+7,
 					idler_height+2]);
 			}
 
@@ -801,8 +855,8 @@ module malcolm_hotend_holes ()
 //groovemount_holes ();
 module groovemount_holes ()
 {
-	extruder_recess_d=16; 
-	extruder_recess_h=3.5; // GLF Hexagon 4.75, Prometheus 4.80 mm, generic aluminum 3.75 mm
+	extruder_recess_d=16 + .2;  // Hexagon 16, prometheus is 16., .2 is tolerance
+	extruder_recess_h=4.8; // GLF Hexagon 4.75, Prometheus 4.80 mm, generic aluminum 3.75 mm
 
 	// Recess in base
 	translate([0,0,-1])
@@ -964,4 +1018,11 @@ module malcolm_extrusion_holes ()
 					center=true);
 		}
 	}
+}
+
+// GLF: From jonaskuehling-default
+module nut_trap(nut_wrench_size,trap_height,vertical=true, clearance=0.2){		// M3 wrench size = 5.5
+	cornerdiameter =  (((nut_wrench_size)/2)+clearance) / cos(180/6);
+	rotate([0,vertical*90,0])
+		cylinder(h = trap_height, r = cornerdiameter, center=true, $fn = 6);
 }
