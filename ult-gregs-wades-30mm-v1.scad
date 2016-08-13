@@ -42,7 +42,7 @@ geeksbase_mount=512;
 malcolm_extrusion_mount=1024;	//broken
 
 // J-Head mount is (in principle) compatible with E3D V5/V6
-default_extruder_mount=jhead_mount;
+default_extruder_mount=groovemount;
 
 // Filament diameter
 // - use 1.80 or 1.85 for 1.75mm diameter filament
@@ -68,10 +68,10 @@ default_mounting_holes=mounting_holes_symmetrical;
 wade(hotend_mount=default_extruder_mount,mounting_holes=default_mounting_holes);
 
 // Bearing Washer
-translate([52,70,0]) bearing_washer();
+//translate([52,70,0]) bearing_washer();
 
 // Guidler
-translate([-20,0,15.25]) rotate([0,-90,0]) wadeidler();
+//translate([-20,0,15.25]) rotate([0,-90,0]) wadeidler();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Visualisation
@@ -303,6 +303,12 @@ module wade(
 					block_bevel_r+base_thickness/2])
 				cylinder(r=block_bevel_r,h=wade_block_depth+base_extra_depth,$fn=60);
 			}
+            // GLF additional mounting block
+            translate([0,base_thickness/2+block_bevel_r,0])
+			cube([wade_block_width,
+				wade_block_height-44,wade_block_depth+base_extra_depth]);				
+			
+            
 
 			// The idler hinge.
 			translate(idler_fulcrum)
@@ -411,7 +417,8 @@ echo("bhmh", mounting_holes)
 	}
 
 	//carriage mounting holes
-	translate([-48.5+64+4,1,3]) {
+    // GLF changed from 4 to 6
+	translate([-48.5+64+6,1,3]) {
 		translate([-25,0,0]) { //-46
 			translate([0,0,layer_thickness+23]) 
 			  cylinder(r=m3_diameter/2, h=wade_block_depth+0.2+base_extra_depth, center=true,$fn=20);
@@ -423,6 +430,15 @@ echo("bhmh", mounting_holes)
 			  cylinder(r=m3_diameter/2, h=wade_block_depth+0.2+base_extra_depth, center=true,$fn=20);
 			cylinder(r=m3_nut_diameter/2+0.4, h=20, center=true,$fn=20);
 		}
+        
+        // GLF third mounting hole
+        translate([-10,23.11,0]) { //-22
+			translate([0,0,layer_thickness+23]) 
+			  cylinder(r=m3_diameter/2, h=wade_block_depth+0.2+base_extra_depth, center=true,$fn=20);
+			cylinder(r=m3_nut_diameter/2+0.4, h=20, center=true,$fn=20);
+		}
+
+        
 	}
 
 	// Idler fulcrum hole.
@@ -508,7 +524,8 @@ echo("bhmh", mounting_holes)
 	}
 
 	// Idler mounting holes and nut traps.
-	for (idle=[-1,1])
+	// GLF copied code from jonaskuelings_greg_wade-v3 design
+    for (idle=[-1,1])
 	{
 		translate([0,
 			idler_mounting_hole_up+large_wheel_translation[1],
@@ -785,7 +802,7 @@ module malcolm_hotend_holes ()
 module groovemount_holes ()
 {
 	extruder_recess_d=16; 
-	extruder_recess_h=5.5;
+	extruder_recess_h=3.5; // GLF Hexagon 4.75, Prometheus 4.80 mm, generic aluminum 3.75 mm
 
 	// Recess in base
 	translate([0,0,-1])
